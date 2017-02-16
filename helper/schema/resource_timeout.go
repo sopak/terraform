@@ -188,6 +188,7 @@ func (t *ResourceTimeout) MetaEncode(id *terraform.InstanceDiff) error {
 }
 
 func (t *ResourceTimeout) MetaDecode(id *terraform.InstanceDiff) error {
+	//TODO-cts - I don't think this is needed
 	if len(id.Meta) == 0 {
 		return nil
 	}

@@ -5,7 +5,9 @@ import (
 	"reflect"
 	"strings"
 	"sync"
+	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/hashicorp/terraform/terraform"
 )
 
@@ -19,11 +21,12 @@ import (
 // The most relevant methods to take a look at are Get, Set, and Partial.
 type ResourceData struct {
 	// Settable (internally)
-	schema map[string]*Schema
-	config *terraform.ResourceConfig
-	state  *terraform.InstanceState
-	diff   *terraform.InstanceDiff
-	meta   map[string]string
+	schema   map[string]*Schema
+	config   *terraform.ResourceConfig
+	state    *terraform.InstanceState
+	diff     *terraform.InstanceDiff
+	meta     map[string]string
+	timeouts *ResourceTimeout
 
 	// Don't set
 	multiReader *MultiLevelFieldReader
@@ -329,6 +332,19 @@ func (d *ResourceData) State() *terraform.InstanceState {
 	}
 
 	return &result
+}
+
+// Timeout returns the data for the given timeout key
+// Returns zero for any key not found, or not found and no default.
+func (d *ResourceData) Timeout(key string) time.Duration {
+	log.Printf("\n@@@\n Here in timeout, values for key (%s):\n", key)
+	if d.timeouts == nil {
+		log.Printf("\t timeouts struct is nil\n")
+	} else {
+		log.Printf("%s", spew.Sdump(d.timeouts))
+	}
+	log.Printf("\n@@@\n")
+	return time.Duration(0)
 }
 
 func (d *ResourceData) init() {

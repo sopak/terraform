@@ -136,6 +136,25 @@ func (r *Resource) Apply(
 		return s, err
 	}
 
+	// instance diff shoould have the timeout info, need to copy it over to the
+	// ResourceData meta
+	log.Printf("\n@@@\nInstance Diff in Apply:\n%s\n@@@\n", spew.Sdump(d))
+	// log.Printf("\n@@@\nInstance State:\n%s\n@@@\n", spew.Sdump(s))
+
+	rt := ResourceTimeout{}
+	if _, ok := d.Meta[TimeoutKey]; ok {
+		log.Println("**** assigning timeouts ***")
+		if err := rt.MetaDecode(d); err != nil {
+			//TODO-cts: verify what kind of error may be thrown here
+			log.Printf("[ERR] Error decoding ResourceTimeout: %s", err)
+		}
+	} else {
+		log.Printf("\n<<< No meta timeoutkey found in Apply()\n")
+	}
+	data.timeouts = &rt
+
+	log.Printf("\n****\nData timeouts now:\n%s\n***\n", spew.Sdump(data))
+
 	if s == nil {
 		// The Terraform API dictates that this should never happen, but
 		// it doesn't hurt to be safe in this case.
@@ -143,6 +162,7 @@ func (r *Resource) Apply(
 	}
 
 	if d.Destroy || d.RequiresNew() {
+		log.Printf("\n@@@ we are creating new ((( @@@\n")
 		if s.ID != "" {
 			// Destroy the resource since it is created
 			if err := r.Delete(data, meta); err != nil {
@@ -161,6 +181,8 @@ func (r *Resource) Apply(
 
 		// Reset the data to be stateless since we just destroyed
 		data, err = schemaMap(r.Schema).Data(nil, d)
+		// Reset timeouts
+		data.timeouts = &rt
 		if err != nil {
 			return nil, err
 		}
@@ -170,6 +192,7 @@ func (r *Resource) Apply(
 	if data.Id() == "" {
 		// We're creating, it is a new resource.
 		data.MarkNewResource()
+		log.Printf("\n@@@ here in id == 0 data meta:\n%s\n@@@\n", spew.Sdump(data.Meta))
 		err = r.Create(data, meta)
 	} else {
 		if r.Update == nil {
@@ -189,22 +212,34 @@ func (r *Resource) Diff(
 	c *terraform.ResourceConfig) (*terraform.InstanceDiff, error) {
 	// log.Printf("\n@@@\nConfig: \n%s\n@@@\n", spew.Sdump(c))
 
-	for k, v := range c.Config {
-		log.Printf("\n\t@@@%s) - %#v", k, v)
-	}
-
 	t := &ResourceTimeout{}
-	log.Printf("\n@@@\nT before config decode:\n%s\n@@@\n", spew.Sdump(t))
+	// log.Printf("\n@@@\nT before config decode:\n%s\n@@@\n", spew.Sdump(t))
 	err := t.ConfigDecode(r, c)
 
-	log.Printf("\n@@@\nT after config decode:\n%s\n@@@\n", spew.Sdump(t))
+	// log.Printf("\n@@@\nT after config decode:\n%s\n@@@\n", spew.Sdump(t))
 
 	if err != nil {
 		log.Printf("\n@@@\n[ERR] Error decoding timeout schema: %s", err)
 		return nil, fmt.Errorf("[ERR] Error decoding timeout: %s", err)
 	}
 
-	return schemaMap(r.Schema).Diff(s, c)
+	instanceDiff, err := schemaMap(r.Schema).Diff(s, c)
+	if err != nil {
+		return instanceDiff, err
+	}
+
+	// log.Printf("\n@@@\nInstance diff before metaencode: \n%s\n@@@\n", spew.Sdump(instanceDiff))
+	if instanceDiff != nil {
+		if err := t.MetaEncode(instanceDiff); err != nil {
+			// not sure MetaEncode will actually return an error
+			log.Printf("[ERR] Error encoding timeout to instance diff: %s", err)
+		}
+	} else {
+		log.Printf("\n@@@\n -- Instance Diff is nil --- \n@@@\n")
+	}
+
+	log.Printf("\n>>> Instance diff in Diff():\n%s\n<<<", spew.Sdump(instanceDiff))
+	return instanceDiff, err
 }
 
 // Validate validates the resource configuration against the schema.
@@ -253,6 +288,8 @@ func (r *Resource) Refresh(
 	if s.ID == "" {
 		return nil, nil
 	}
+
+	log.Printf("\n<<< instance state: \n%s\n", spew.Sdump(s))
 
 	if r.Exists != nil {
 		// Make a copy of data so that if it is modified it doesn't
