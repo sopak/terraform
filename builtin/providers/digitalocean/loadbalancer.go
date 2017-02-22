@@ -11,7 +11,7 @@ func loadbalancerStateRefreshFunc(client *godo.Client, loadbalancerId string) re
 	return func() (interface{}, string, error) {
 		lb, _, err := client.LoadBalancers.Get(loadbalancerId)
 		if err != nil {
-			return nil, "", fmt.Errorf("Error issuing read request in LoadbalancerStateRefreshFunc to DigitalOcean for Loadbalancer '%s': %s", loadbalancerId, err)
+			return nil, "", fmt.Errorf("Error issuing read request in LoadbalancerStateRefreshFunc to DigitalOcean for Load Balancer '%s': %s", loadbalancerId, err)
 		}
 
 		return lb, lb.Status, nil
