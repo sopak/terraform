@@ -8,6 +8,8 @@ import (
 	"strings"
 	"sync"
 
+	"crypto/md5"
+	"encoding/json"
 	"github.com/hashicorp/hil"
 	"github.com/hashicorp/hil/ast"
 	"github.com/hashicorp/terraform/config"
@@ -432,6 +434,19 @@ func (i *Interpolater) computeResourceVariable(
 		}
 
 		goto MISSING
+	}
+
+	// If we're requesting "_hash" its a special variable that represents md5sum of attributes marshaled json
+	// we can track all changes in a resource
+	if v.Field == "_hash" {
+
+		bytes, err := json.Marshal(&r.Primary.Attributes)
+		if err != nil {
+			return nil, err
+		}
+		sum := md5.Sum(bytes)
+		v, err := hil.InterfaceToVariable(fmt.Sprintf("%x", sum))
+		return &v, err
 	}
 
 	if attr, ok := r.Primary.Attributes[v.Field]; ok {
