@@ -455,7 +455,7 @@ func (i *Interpolater) computeResourceVariable(
 		return &v, err
 	}
 
-	// If we're requesting "_tainted" its a special variable that represents if resource is Tainted
+	// If we're requesting "_json" its a special variable that represents resource as json
 	if v.Field == "_json" {
 		bytes, err := json.Marshal(&r)
 		if err != nil {
