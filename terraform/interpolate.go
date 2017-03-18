@@ -455,6 +455,16 @@ func (i *Interpolater) computeResourceVariable(
 		return &v, err
 	}
 
+	// If we're requesting "_tainted" its a special variable that represents if resource is Tainted
+	if v.Field == "_json" {
+		bytes, err := json.Marshal(&r)
+		if err != nil {
+			return nil, err
+		}
+		v, err := hil.InterfaceToVariable(string(bytes))
+		return &v, err
+	}
+
 	if attr, ok := r.Primary.Attributes[v.Field]; ok {
 		v, err := hil.InterfaceToVariable(attr)
 		return &v, err
