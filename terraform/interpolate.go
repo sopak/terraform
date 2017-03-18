@@ -449,6 +449,12 @@ func (i *Interpolater) computeResourceVariable(
 		return &v, err
 	}
 
+	// If we're requesting "_tainted" its a special variable that represents if resource is Tainted
+	if v.Field == "_tainted" {
+		v, err := hil.InterfaceToVariable(r.Primary.Tainted)
+		return &v, err
+	}
+
 	if attr, ok := r.Primary.Attributes[v.Field]; ok {
 		v, err := hil.InterfaceToVariable(attr)
 		return &v, err
